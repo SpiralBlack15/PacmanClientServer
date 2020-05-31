@@ -24,10 +24,10 @@ namespace Spiral.PacmanGame
         public bool inGame { get; private set; } = false;
 
         private bool m_animated = false;
-        private bool animated
+        public bool animated
         {
             get { return m_animated; }
-            set
+            private set
             {
                 m_animated = value;
                 if (value)
@@ -50,20 +50,20 @@ namespace Spiral.PacmanGame
             animated = false;
         }
 
-        private float timer = 0;
+        private float senderTimer = 0;
         private void Update()
         {
             if (client == null) return;
             if (!client.connected) return;
             if (!inGame) return;
 
-            timer += Time.deltaTime;
-            if (timer > sendTime)
+            senderTimer += Time.deltaTime;
+            if (senderTimer > sendTime)
             {
                 SendMovementFlag();
                 SendMovement();
             }
-            GetPosition();
+            ReadFromQueue();
         }
 
         // CLIENT-SERVER INTERACTION ==============================================================
@@ -85,14 +85,30 @@ namespace Spiral.PacmanGame
             client.SendRequest("MOV:" + PackMovement());
         }
 
-        private void GetPosition()
+        private void ReadFromQueue()
         {
-            string position = client.PickLastAnswer();
-            if (string.IsNullOrWhiteSpace(position)) return;
+            string answer = client.PickLastAnswer();
 
+            int size = answer.Length;
+            if (size < 3) return; // проверяем, что у нас есть хедер запроса
+            string header = answer.Substring(0, 3); // первые три знака - заголовок
+            string content = (size > 4) ? answer.Substring(4) : ""; // начинаем с 5-го знака, это 4-ая позиция
+
+            switch (header) // пока что здесь только POS, но можно и другие команды будет добавить
+            // карта пока запрашивается и читается отдельно
+            {
+                case "POS": 
+                    GetPosition(content);
+                    break;
+
+                default: break; // неопознанный запрос
+            }
+        }
+
+        private void GetPosition(string position)
+        {
             try
             {
-                position = position.Replace("POS:", "");
                 string[] result = position.Split('x');
                 int getX = Convert.ToInt32(result[0]);
                 int getY = Convert.ToInt32(result[1]);
@@ -124,14 +140,16 @@ namespace Spiral.PacmanGame
         //=========================================================================================
         private void OnConnected()
         {
-            if (!inGame) GetLevel();
+            if (!inGame)
+            {
+                GetLevel();
+            }
             else SendPosition(); // иначе отправляем серверу своё последнее положение
         }
 
         public async void GetLevel()
         {
-            inGame = false;
-
+            inGame = false; 
             while (!inGame) 
             // если у нас карта не прочиталсь верно с первого раза, будем кидать
             // реквест карты до тех пор, пока не прочитаемся или пока клиент не отключится
@@ -154,7 +172,6 @@ namespace Spiral.PacmanGame
                     map.RemoveAt(0); // удаляем из пакета в целях удобства
 
                     // читаем остальные строчки, грузимся в массив
-                    Debug.Log($"Loading Map: {width}x{height}");
                     for (int x = 0; x < width; x++)
                     {
                         char[] line = map[x].ToCharArray();
@@ -177,7 +194,10 @@ namespace Spiral.PacmanGame
                 {
                     inGame = false; // на всякий случай
                     Debug.LogWarning($"MAP ERROR: {error}");
-                    if (!client.connected) return;
+                    if (!client.connected)
+                    {
+                        return; 
+                    }
                 }
             }
         }

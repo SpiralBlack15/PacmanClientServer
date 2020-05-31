@@ -22,6 +22,8 @@ namespace Spiral.PacmanGame.UI
 
         private void UpdateText()
         {
+            if (client == null) return;
+            if (client.endPoint == null) return;
             text.text = client.endPoint.ToString();
         }
     }

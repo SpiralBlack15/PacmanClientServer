@@ -70,6 +70,7 @@
     <Compile Include="Assets\Scripts\Client\RemoteGameController.cs" />
     <Compile Include="Assets\Scripts\Network\ClientAsyncSocket.cs" />
     <Compile Include="Assets\Scripts\UI\UIConnectionStatus.cs" />
+    <Compile Include="Assets\Scripts\UI\UIForceLoadLevel.cs" />
     <Compile Include="Assets\Scripts\UI\UIHostPort.cs" />
     <Compile Include="Assets\Scripts\UI\UILoadingRing.cs" />
     <Compile Include="Assets\Scripts\UI\UILocalAddress.cs" />

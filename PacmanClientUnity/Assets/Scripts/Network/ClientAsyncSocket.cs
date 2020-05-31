@@ -9,15 +9,12 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using UnityEngine;
 
 namespace Spiral.PacmanGame.Client
 {
     public class ClientSocketV2 : IDisposable
     {
         #region CONST 
-        // внимание: это всё должно совпадать на стороне сервера тоже!
-
         /// <summary>
         /// Размер буфера
         /// </summary>
@@ -490,7 +487,15 @@ namespace Spiral.PacmanGame.Client
         /// </summary>
         private void BeginReceive() 
         {
-            client.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, ReceieveAsyncCallback, null);
+            try
+            {
+                client.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, ReceieveAsyncCallback, null);
+            }
+            catch (Exception error)
+            {
+                UnityEngine.Debug.Log(error);
+                Disconnect(true);
+            }
         }
 
         /// <summary>

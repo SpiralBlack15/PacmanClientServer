@@ -44,8 +44,12 @@ namespace PacmanServerConsole
             BeginReceive();
 
             // а отправку данных мы просто делаем в отдельном потоке
-            sendingThread = new Thread(SendingThread) { IsBackground = true };
-            sendingThread.Start();
+            if (disconnecting) return; // это может потребоваться, если ошибка вылетит в BeginReceieve
+            lock (sendingThreadLocker)
+            {
+                sendingThread = new Thread(SendingThread) { IsBackground = true };
+                sendingThread.Start();
+            }
         }
 
         // RECIEVING ==============================================================================
@@ -165,6 +169,7 @@ namespace PacmanServerConsole
             queueSend.Enqueue(message);
         }
 
+        private readonly object sendingThreadLocker = new object();
         private Thread sendingThread = null;
         private void SendingThread()
         {
@@ -196,7 +201,6 @@ namespace PacmanServerConsole
         // DISCONNECTION ==========================================================================
         // Разрываем подключение
         //=========================================================================================
-        private readonly object sendingThreadLocker = new object();
         private bool disconnecting = false;
         public void Disconnect()
         {

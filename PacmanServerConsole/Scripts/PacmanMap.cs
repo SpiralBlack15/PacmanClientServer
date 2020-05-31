@@ -109,14 +109,14 @@ namespace PacmanServerConsole
             StringBuilder stringBuilder = new StringBuilder();
             for (int y = bmap.GetLength(1) - 1; y > -1; y--)
             {
-                stringBuilder.Clear();
                 for (int x = 0; x < bmap.GetLength(0); x++)
                 {
                     string str = bmap[x, y] ? "# " : "  ";
                     stringBuilder.Append(str);
                 }
-                Logger.ColorLog(stringBuilder.ToString(), ConsoleColor.DarkCyan);
+                stringBuilder.Append("\n");
             }
+            Logger.ColorLog(stringBuilder.ToString(), ConsoleColor.DarkCyan);
             Logger.Space();
         }
     }

@@ -36,7 +36,7 @@ namespace PacmanServerConsole
                     ResolveMovement(client, content);
                     break;
 
-                default: // неопознанный лунный кролик
+                default: // неопознанный запрос
                     Logger.ColorLog($"Unknown request syntax", ConsoleColor.Gray);
                     return;
             }
