@@ -169,7 +169,7 @@ namespace PacmanServerConsole
         private void SendingThread()
         {
             if (client == null) return; 
-            while (client.Connected)
+            while (client.Connected && !disconnecting)
             {
                 if (queueSend.TryDequeue(out string message))
                 {
@@ -197,8 +197,10 @@ namespace PacmanServerConsole
         // Разрываем подключение
         //=========================================================================================
         private readonly object sendingThreadLocker = new object();
+        private bool disconnecting = false;
         public void Disconnect()
         {
+            disconnecting = true;
             try
             {
                 Logger.ColorLog($"{endPoint}: disconnecting...", ConsoleColor.Yellow);
@@ -214,12 +216,12 @@ namespace PacmanServerConsole
                         client = null;
                     }
                 }
-                onClientDisconnected?.Invoke(this);
             }
             catch (Exception error)
             {
                 Logger.ColorLog($"{endPoint} DISCONNECTION ERROR: {error}", ConsoleColor.Red);
             }
+            onClientDisconnected?.Invoke(this); // вызываем в любом случае!
         }
 
         private bool disposing = false;

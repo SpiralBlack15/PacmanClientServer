@@ -72,6 +72,7 @@
     <Compile Include="Assets\Scripts\UI\UIConnectionStatus.cs" />
     <Compile Include="Assets\Scripts\UI\UIHostPort.cs" />
     <Compile Include="Assets\Scripts\UI\UILoadingRing.cs" />
+    <Compile Include="Assets\Scripts\UI\UILocalAddress.cs" />
     <Compile Include="Assets\SpiralScripts\Core\ComponentTools.cs" />
     <Compile Include="Assets\SpiralScripts\Core\Destroyer.cs" />
     <Compile Include="Assets\SpiralScripts\Core\EnumTools.cs" />

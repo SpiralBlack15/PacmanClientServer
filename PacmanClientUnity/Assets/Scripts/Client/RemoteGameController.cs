@@ -14,12 +14,32 @@ namespace Spiral.PacmanGame
         public PlayerController playerController = null;
         public LevelBuilder builder = null;
         public Pacman pacman = null;
-        public float cellStepTime = 0.1f; // время на один переход между клетками
-        public float timeStep = 0.01f; // шаг корутины
+        public float cellStep = 1f; // время на один переход между клетками
+        public float cellCourStep = 0.05f; // шаг корутины
+        [Range(0, 1)]public float sendTime = 0.3f;
+        [Range(0.25f, 5f)]public float animationSpeed = 3f;
 
         private int x = 0;
         private int y = 0;
         public bool inGame { get; private set; } = false;
+
+        private bool m_animated = false;
+        private bool animated
+        {
+            get { return m_animated; }
+            set
+            {
+                m_animated = value;
+                if (value)
+                {
+                    pacman.animator.speed = animationSpeed;
+                }
+                else
+                {
+                    pacman.animator.speed = 0;
+                }
+            }
+        }
 
         // MONO BEHAVIOUR =========================================================================
         // Моно
@@ -27,20 +47,20 @@ namespace Spiral.PacmanGame
         private void Awake()
         {
             client.onConnected.AddListener(OnConnected);
-            pacman.animator.speed = 0;
+            animated = false;
         }
 
-        private float sendingTimer = 0;
-        private void FixedUpdate()
+        private float timer = 0;
+        private void Update()
         {
             if (client == null) return;
             if (!client.connected) return;
             if (!inGame) return;
 
-            sendingTimer += Time.fixedDeltaTime;
-            if (sendingTimer > 1f)
+            timer += Time.deltaTime;
+            if (timer > sendTime)
             {
-                SendPosition();
+                SendMovementFlag();
                 SendMovement();
             }
             GetPosition();
@@ -51,7 +71,13 @@ namespace Spiral.PacmanGame
         //=========================================================================================
         private void SendPosition()
         {
-            client.SendRequest("POS:" + PackSize(x, y)); 
+            client.SendRequest("SET:" + PackSize(x, y)); 
+        }
+
+        private void SendMovementFlag()
+        {
+            char c = inMovement ? '1' : '0';
+            client.SendRequest($"COR:{c}");
         }
 
         private void SendMovement()
@@ -181,7 +207,7 @@ namespace Spiral.PacmanGame
         // MOVEMENT CONTROLLER ====================================================================
         // Контроль положения
         //=========================================================================================
-        private void SetDirection()
+        private void SetSpriteDirection()
         {
             Vector3 euler = new Vector3(0, 0, 0);
             if (newX > x) // идём вправо
@@ -237,35 +263,36 @@ namespace Spiral.PacmanGame
                 else newY = y;
             }
 
-            // если после фиксов выяснилось, что мы слишком хороши
+            // если после фиксов выяснилось, что мы и так на этом месте
             if (newY == y && newX == x) yield break;
 
-            SetDirection();
+            SetSpriteDirection();
 
             inMovement = true;
-
-            pacman.animator.speed = 1;
+            animated = true;
 
             float movementTimer = 0;
             Vector3 positionStart = GetWorldPos();
             Vector3 targetPosition = GetDesiredPosition(newX, newY);
-            while (movementTimer < cellStepTime)
+            while (movementTimer < cellStep)
             {
-                movementTimer += timeStep;
-                float t = movementTimer / cellStepTime;
+                movementTimer += cellCourStep;
+                float t = movementTimer / cellStep;
                 ForceSetWorldPos(Vector3.Lerp(positionStart, targetPosition, t));
-                if (t > 0.5f) { x = newX; y = newY; } // мы считаемся уже на новой клетке
-                yield return new WaitForSeconds(timeStep);
+                if (t > 0.1f) { x = newX; y = newY; }
+                // мы начали движение и считаемся уже на новой клетке
+                // чтобы не было разворотов
+                SendMovementFlag();
+                yield return new WaitForFixedUpdate();
             }
 
             client.KillRecievingStreak();
             client.KillSendingStreak();
-
             ForceSetCellPosition(newX, newY);
 
-            pacman.animator.speed = 0;
-
+            animated = false;
             inMovement = false;
+            SendMovementFlag();
         }
 
         // SERVICE ================================================================================

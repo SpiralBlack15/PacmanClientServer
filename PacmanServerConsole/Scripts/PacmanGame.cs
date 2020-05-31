@@ -11,9 +11,12 @@ namespace PacmanServerConsole
         // Экземпляр игры
         //=========================================================================================
         public PacmanMap map { get; private set; }
+
+        // реальные позиции
         public int pacmanX { get; private set; } = 0;
         public int pacmanY { get; private set; } = 0;
-
+        public bool inmove { get; private set; } = false;
+        
         public PacmanGame()
         {
             map = new PacmanMap();
@@ -28,6 +31,11 @@ namespace PacmanServerConsole
         {
             pacmanX = x;
             pacmanY = y;
+        }
+
+        public void SetMove(bool move)
+        {
+            inmove = move;
         }
 
         private void SetDefaultPosition()
@@ -119,6 +127,11 @@ namespace PacmanServerConsole
         /// <returns>В какую сторону мы подвинемся (если подвинемся) вследствие движения</returns>
         public (int x, int y, Direction move) ResolveMovement(string movement)
         {
+            if (inmove)
+            {
+                return (pacmanX, pacmanY, Direction.None); // не меняем направление
+            }
+
             if (movement == "0000")
             {
                 prevDirection = Direction.None;

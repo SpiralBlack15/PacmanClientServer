@@ -24,8 +24,12 @@ namespace PacmanServerConsole
                     SendCurrentMap(client);
                     break;
 
-                case "POS": // клиент посылает своё положение?
+                case "SET": // клиент посылает своё положение?
                     SetPacmanPosition(client, content);
+                    break;
+
+                case "COR": // клиент сообщает состояние движения
+                    SetMovementFlag(client, content);
                     break;
 
                 case "MOV": // клиент посылает запрос на изменение положения
@@ -38,7 +42,7 @@ namespace PacmanServerConsole
             }
         }
 
-        public static void SendCurrentMap(ClientConnection client)
+        private static void SendCurrentMap(ClientConnection client)
         {
             PacmanGame game = client.game;
             List<string> map = game.map.GetText();
@@ -57,7 +61,7 @@ namespace PacmanServerConsole
             strbuilder.Clear();
         }
 
-        public static void SetPacmanPosition(ClientConnection client, string position)
+        private static void SetPacmanPosition(ClientConnection client, string position)
         {
             string[] pos = position.Split('x');
             int x = Convert.ToInt32(pos[0]);
@@ -65,7 +69,13 @@ namespace PacmanServerConsole
             client.game.SetPosition(x, y);
         }
 
-        public static void ResolveMovement(ClientConnection client, string movement)
+        private static void SetMovementFlag(ClientConnection client, string flag)
+        {
+            bool move = flag[0] == '1';
+            client.game.SetMove(move);
+        }
+
+        private static void ResolveMovement(ClientConnection client, string movement)
         {
             string move = movement.Substring(0, 4);
             var result = client.game.ResolveMovement(move);

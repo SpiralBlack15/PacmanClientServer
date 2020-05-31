@@ -3,8 +3,10 @@ using Spiral.PacmanGame.Client;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -32,6 +34,8 @@ namespace Spiral.PacmanGame.Game
         public bool connected { get { return client.connected; } }
         public int maxTrialCounter { get { return client.maxTrialCounter; } }
         public bool inConnectingProcess { get { return client.inConnectingProcess; } }
+
+        public EndPoint endPoint { get { return client.endPoint; } }
 
         private ClientSocketV2 client;
 
@@ -63,7 +67,6 @@ namespace Spiral.PacmanGame.Game
 
                     if (!client.connected && client.requiresEmergencyExternalReboot)
                     {
-                        Debug.Log("Try to reconnect");
                         client.ConnectToServer();
                     }
                 }
@@ -127,9 +130,10 @@ namespace Spiral.PacmanGame.Game
             client.KillSenderStreak();
         }
 
-        public void SendRequest(string content)
+        public void SendRequest(string content, bool instant = false)
         {
-            client.Send(content, true);
+            if (instant) client.InstantSend(content, true);
+            else client.QueuedSend(content, true);
         }
 
         public string PickLastAnswer() // внимание, это зачистит всю очередь!
@@ -178,9 +182,10 @@ namespace Spiral.PacmanGame.Game
             return new List<string>(result.Split(ClientSocketV2.delimiter));
         }
 
-        private readonly ConcurrentQueue<string> queue = new ConcurrentQueue<string>();
+        private ConcurrentQueue<string> queue = new ConcurrentQueue<string>();
         private void Client_onMessageReceived(string message)
         {
+            if (queue.Count > 10) queue = new ConcurrentQueue<string>(); // это проще прихлопнуть, чем чистить
             queue.Enqueue(message);
         }
 
@@ -189,7 +194,6 @@ namespace Spiral.PacmanGame.Game
         private void ClientSocket_onConnectionFailed()
         {
             CheckSocket();
-            //Debug.Log($"Connection Failed: {client.lastConnectionError}");
         }
 
         private void ClientSocket_onReconnectionBegin(int trialCounter)

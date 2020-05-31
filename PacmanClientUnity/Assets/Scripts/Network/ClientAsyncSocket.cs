@@ -84,6 +84,15 @@ namespace Spiral.PacmanGame.Client
                 m_host = value;
             }
         }
+
+        public EndPoint endPoint
+        {
+            get
+            {
+                if (client == null) return null;
+                else return client.LocalEndPoint; 
+            }
+        }
         #endregion
 
         #region OWN INFO
@@ -362,7 +371,7 @@ namespace Spiral.PacmanGame.Client
         // Отправляем пирожки бабушке
         //=========================================================================================
         #region SENDING
-        private readonly ConcurrentQueue<string> queueSend = new ConcurrentQueue<string>();
+        private ConcurrentQueue<string> queueSend = new ConcurrentQueue<string>();
         private Thread sendingThread = null;
 
         /// <summary>
@@ -370,10 +379,36 @@ namespace Spiral.PacmanGame.Client
         /// </summary>
         /// <param name="message">Сообщение</param>
         /// <param name="terminated">Обязательно закончить нуль-символом</param>
-        public void Send(string message, bool terminated = true)
+        public void QueuedSend(string message, bool terminated = true)
         {
             if (terminated) message += terminator;
+            if (queueSend.Count > 5) KillSenderStreak(); // избегаем оверспама
             queueSend.Enqueue(message);
+        }
+
+        public void InstantSend(string message, bool terminated)
+        {
+            if (terminated) message += terminator;
+            byte[] data = Encoding.ASCII.GetBytes(message);
+            client.BeginSend(data, 0, data.Length, SocketFlags.None, Callback, null);
+
+            void Callback(IAsyncResult asyncResult)
+            {
+                try
+                {
+                    int bytes = client.EndSend(asyncResult); 
+                }
+                catch (SocketException error)
+                {
+                    lastSendingError = error;
+                    onSendError?.Invoke();
+                }
+                catch (Exception error)
+                {
+                    lastSendingError = error;
+                    onSendError?.Invoke();
+                }
+            }
         }
 
         /// <summary>
