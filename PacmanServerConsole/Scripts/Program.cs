@@ -8,6 +8,9 @@ namespace PacmanServerConsole
         static ServerSocketV2 server;
         static void Main(string[] args)
         {
+            Logger.ColorLog($"--PACMAN SERVER APPLICATION--", ConsoleColor.Green);
+            Logger.Space();
+
             try
             {
                 // запускаем сервер
@@ -20,16 +23,13 @@ namespace PacmanServerConsole
             catch (Exception error)
             {
                 server.Disconnect();
-                Console.WriteLine($"Error: {error}");
+                Logger.ColorLog($"ERROR in main {error}", ConsoleColor.Red);
             }
 
             // нажмите Enter, чтобы выйти
-            Console.WriteLine("Press Enter to close server");
+            Logger.ColorLog($"(Press Enter to close server)", ConsoleColor.DarkGray);
             ConsoleKey key = ConsoleKey.NoName;
-            while (key != ConsoleKey.Enter)
-            {
-                key = Console.ReadKey().Key;
-            }
+            while (key != ConsoleKey.Enter) { key = Console.ReadKey().Key; }
 
             // подметаем мусор за собой сами
             if (server != null) server.Dispose();

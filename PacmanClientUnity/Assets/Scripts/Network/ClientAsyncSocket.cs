@@ -252,7 +252,7 @@ namespace Spiral.PacmanGame.Client
             if (thread != 1)
             {
                 StackTrace trace = new StackTrace();
-                UnityEngine.Debug.LogWarning($"Почему мы грузимся не из главного треда Unity?:\n{trace}");
+                UnityEngine.Debug.LogWarning($"Trying to access not from Unity main thread:\n{trace}");
             }
 
             trialCounter++;
@@ -299,7 +299,6 @@ namespace Spiral.PacmanGame.Client
                 ConnectToServer();
             }
 
-            // внутренняя задача по подключению
             Task<bool> ConnectionTask()
             {
                 bool taskResult = false;
@@ -336,7 +335,6 @@ namespace Spiral.PacmanGame.Client
                     catch (Exception error)
                     {
                         lastConnectionError = error;
-                        //UnityEngine.Debug.Log($"{error}");
                     }
                     Thread.Sleep(1);
                     return taskResult;
@@ -438,7 +436,7 @@ namespace Spiral.PacmanGame.Client
             CheckClientRebuilded(); // проверяем сокет
             if (!client.Connected)
             {
-                ConnectToServer();
+                requiresEmergencyExternalReboot = true;
             }
         }
         #endregion

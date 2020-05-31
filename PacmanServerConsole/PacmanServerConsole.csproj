@@ -45,6 +45,7 @@
   <ItemGroup>
     <Compile Include="Scripts\ClientConnection.cs" />
     <Compile Include="Scripts\EventTools.cs" />
+    <Compile Include="Scripts\Logger.cs" />
     <Compile Include="Scripts\PacmanCommands.cs" />
     <Compile Include="Scripts\PacmanGame.cs" />
     <Compile Include="Scripts\PacmanMap.cs" />

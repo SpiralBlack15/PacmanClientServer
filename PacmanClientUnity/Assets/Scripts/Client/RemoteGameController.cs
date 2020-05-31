@@ -3,6 +3,7 @@ using Spiral.PacmanGame.Game;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Spiral.PacmanGame
@@ -39,21 +40,15 @@ namespace Spiral.PacmanGame
             sendingTimer += Time.fixedDeltaTime;
             if (sendingTimer > 1f)
             {
-                SendData();
+                SendPosition();
+                SendMovement();
             }
-
-            GetMovement(); // получаем передвижение всегда
+            GetPosition();
         }
 
         // CLIENT-SERVER INTERACTION ==============================================================
         // Отправка-приём
         //=========================================================================================
-        private void SendData()
-        {
-            SendPosition(); // сообщаем текущие координаты
-            SendMovement(); // сообщаем движение
-        }
-
         private void SendPosition()
         {
             client.SendRequest("POS:" + PackSize(x, y)); 
@@ -64,82 +59,100 @@ namespace Spiral.PacmanGame
             client.SendRequest("MOV:" + PackMovement());
         }
 
-        private void OnConnected()
+        private void GetPosition()
         {
-            if (!inGame) GetLevel();
-        }
-
-        public async void GetLevel()
-        {
-            inGame = false;
-
-            // отправляем запрос на карту
-            client.SendRequest("MAP"); 
-            List<string> map = await client.PickLastPackedAnswer(); // TODO: плохо устойчиво ко спаму
-
-            // читаем размеры карты
-            var mapSize = UnpackSize(map[0]);
-            int width = mapSize.x;
-            int height = mapSize.y;
-            bool[,] bmap = new bool[width, height];
-            map.RemoveAt(0); // удаляем из пакета
-
-            // читаем положение пакмана
-            var pacPos = UnpackSize(map[0]);
-            map.RemoveAt(0); // удаляем из пакета
-
-            // грузим всю карту в булев массив
-            Debug.Log($"Loading Map: {width}x{height}"); // TODO: вынести в интерфейс
-            for (int x = 0; x < width; x++)
-            {
-                char[] line = map[x].ToCharArray();
-                for (int y = 0; y < height; y++)
-                {
-                    bmap[x, y] = line[y] == '1' ? true : false;
-                }
-            }
-
-            // отправляем карту билдиться 
-            builder.LoadMap(bmap);
-
-            // выставляем позицию
-            ForceSetCellPosition(pacPos.x, pacPos.y);
-
-            // начинаем игру
-            inGame = true;
-        }
-
-        private void GetMovement()
-        {
-            string position = client.PickLastAnswer(); 
+            string position = client.PickLastAnswer();
             if (string.IsNullOrWhiteSpace(position)) return;
 
             try
             {
                 position = position.Replace("POS:", "");
                 string[] result = position.Split('x');
-                int newX = Convert.ToInt32(result[0]);
-                int newY = Convert.ToInt32(result[1]);
+                int getX = Convert.ToInt32(result[0]);
+                int getY = Convert.ToInt32(result[1]);
 
                 // проверяем, что мы туда НЕ двигаемся
-                bool notMovingHere = (newX != this.newX || newY != this.newY);
-                bool notHere = (newX != x || newY != y);
+                bool notMovingHere = getX != newX || getY != newY;
+                bool notHere = getX != x || getY != y;
 
                 if (notMovingHere && notHere)
                 {
-                    // меняем курс только когда предыдущая корутина захлопнулась
+                    // меняем курс только когда предыдущая корутина схлопнулась!
                     if (!inMovement)
                     {
                         inMovement = true;
-                        this.newX = newX;
-                        this.newY = newY;
+                        newX = getX;
+                        newY = getY;
                         StartCoroutine("MoveTo");
                     }
                 }
             }
             catch (Exception error)
             {
-                Debug.Log($"{position} with error:\n {error}");
+                Debug.Log(error);
+            }
+        }
+
+        // ON CONNECTED ===========================================================================
+        // Действия при подключении
+        //=========================================================================================
+        private void OnConnected()
+        {
+            if (!inGame) GetLevel();
+            else SendPosition(); // иначе отправляем серверу своё последнее положение
+        }
+
+        public async void GetLevel()
+        {
+            inGame = false;
+
+            while (!inGame) 
+            // если у нас карта не прочиталсь верно с первого раза, будем кидать
+            // реквест карты до тех пор, пока не прочитаемся или пока клиент не отключится
+            {
+                try
+                {
+                    // отправляем запрос на карту
+                    client.SendRequest("MAP");
+                    List<string> map = await client.PickLastPackedAnswer();
+
+                    // читаем размеры карты
+                    var mapSize = UnpackSize(map[0]);
+                    int width = mapSize.x;
+                    int height = mapSize.y;
+                    bool[,] bmap = new bool[width, height];
+                    map.RemoveAt(0); // удаляем из пакета в целях удобства
+
+                    // читаем положение пакмана
+                    var pacPos = UnpackSize(map[0]);
+                    map.RemoveAt(0); // удаляем из пакета в целях удобства
+
+                    // читаем остальные строчки, грузимся в массив
+                    Debug.Log($"Loading Map: {width}x{height}");
+                    for (int x = 0; x < width; x++)
+                    {
+                        char[] line = map[x].ToCharArray();
+                        for (int y = 0; y < height; y++)
+                        {
+                            bmap[x, y] = line[y] == '1' ? true : false;
+                        }
+                    }
+
+                    // отправляем карту билдиться 
+                    builder.LoadMap(bmap);
+
+                    // выставляем позицию
+                    ForceSetCellPosition(pacPos.x, pacPos.y);
+
+                    // начинаем игру
+                    inGame = true;
+                }
+                catch (Exception error)
+                {
+                    inGame = false; // на всякий случай
+                    Debug.LogWarning($"MAP ERROR: {error}");
+                    if (!client.connected) return;
+                }
             }
         }
 
@@ -147,7 +160,7 @@ namespace Spiral.PacmanGame
         {
             this.x = x; this.y = y;
             ForceSetWorldPos(GetDesiredPosition(x, y));
-            SendData();
+            SendPosition();
         }
 
         private void ForceSetWorldPos(Vector3 target)
@@ -202,8 +215,7 @@ namespace Spiral.PacmanGame
         private bool inMovement = false;
         private IEnumerator MoveTo()
         {
-            // фиксим недоразумения
-
+            // фиксим недоразумения, если нам что-то очевидно не то приехало
             int dirX = newX - x;
             int distX = Mathf.Abs(dirX);
             if (distX > 1) // слишком длинный шаг по X
@@ -239,10 +251,10 @@ namespace Spiral.PacmanGame
             Vector3 targetPosition = GetDesiredPosition(newX, newY);
             while (movementTimer < cellStepTime)
             {
-
                 movementTimer += timeStep;
                 float t = movementTimer / cellStepTime;
                 ForceSetWorldPos(Vector3.Lerp(positionStart, targetPosition, t));
+                if (t > 0.5f) { x = newX; y = newY; } // мы считаемся уже на новой клетке
                 yield return new WaitForSeconds(timeStep);
             }
 
@@ -270,10 +282,7 @@ namespace Spiral.PacmanGame
             return new string(charstr);
         }
 
-        private string PackSize(int x, int y)
-        {
-            return $"{x}x{y}";
-        }
+        private string PackSize(int x, int y) { return $"{x}x{y}"; }
 
         private (int x, int y) UnpackSize(string size)
         {

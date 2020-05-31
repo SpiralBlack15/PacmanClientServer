@@ -134,8 +134,6 @@ namespace PacmanServerConsole
             Direction horizontalResolve = ResolveHorizontal(left, right);
             prevDirection = FinalResolve(verticalResolve, horizontalResolve);
 
-            Console.WriteLine($"from {pacmanX}-{pacmanY} {movement} resolve = {prevDirection}");
-
             int x = pacmanX;
             int y = pacmanY;
             switch (prevDirection)
@@ -146,7 +144,7 @@ namespace PacmanServerConsole
                 case Direction.Down:  y--; break;
                 case Direction.None: break;
 
-                default: throw new ArgumentException("What the hell?");
+                default: throw new ArgumentException("Enum changed?");
             }
 
             return (x, y, prevDirection);

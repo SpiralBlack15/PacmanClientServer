@@ -30,7 +30,7 @@ namespace PacmanServerConsole
 
             if (!File.Exists(path))
             {
-                Console.WriteLine($"Map file not found in path: {path}");
+                Logger.ColorLog($"ERROR map file could not be found in path: {path}", ConsoleColor.Red);
                 return false;
             }
 
@@ -64,7 +64,7 @@ namespace PacmanServerConsole
             }
             catch (Exception error)
             {
-                Console.WriteLine($"Error reading map file: {error}");
+                Logger.ColorLog($"ERROR reading map file: {error}", ConsoleColor.Red);
                 return false;
             }
         }
@@ -104,8 +104,8 @@ namespace PacmanServerConsole
         /// </summary>
         private void PacmanMap_onMapLoaded()
         {
-            Console.WriteLine();
-            Console.WriteLine("Map loaded");
+            Logger.Space();
+            Logger.ColorLog("MAP loaded", ConsoleColor.DarkCyan);
             StringBuilder stringBuilder = new StringBuilder();
             for (int y = bmap.GetLength(1) - 1; y > -1; y--)
             {
@@ -115,9 +115,9 @@ namespace PacmanServerConsole
                     string str = bmap[x, y] ? "# " : "  ";
                     stringBuilder.Append(str);
                 }
-                Console.WriteLine(stringBuilder.ToString());
+                Logger.ColorLog(stringBuilder.ToString(), ConsoleColor.DarkCyan);
             }
-            Console.WriteLine();
+            Logger.Space();
         }
     }
 }

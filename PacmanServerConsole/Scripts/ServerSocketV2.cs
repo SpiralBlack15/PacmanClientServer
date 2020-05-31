@@ -34,15 +34,16 @@ namespace PacmanServerConsole
             try
             {
                 EndPoint localEP = new IPEndPoint(IPAddress.Any, port);
-                server.Bind(localEP); 
-                Console.WriteLine($"Binded on port: {port}");
+                server.Bind(localEP);
+                Logger.ColorLog($"SERVER binded on port: {port}");
+                Logger.ColorLog($"SERVER is waiting for clients...");
                 onServerBind?.Invoke();
                 server.Listen(10);
                 server.BeginAccept(OnAcceptClientAsync, server);
             }
             catch (Exception error)
             {
-                Console.WriteLine($"Server error: {error}");
+                Logger.ColorLog($"SERVER ERROR: {error}", ConsoleColor.Red);
             }
 
             void OnAcceptClientAsync(IAsyncResult asyncResult)
@@ -54,7 +55,7 @@ namespace PacmanServerConsole
                     asseptResetEvent.Set();
 
                     // сообщаем, что есть входящее соединение
-                    Console.WriteLine($"Accepted connection: {client.RemoteEndPoint}");
+                    Logger.ColorLog($"SERVER accepted connection: {client.RemoteEndPoint}", ConsoleColor.Green);
 
                     // удаляем если есть
                     int idx = connections.FindIndex(x => x.client == client);
@@ -74,7 +75,7 @@ namespace PacmanServerConsole
                 }
                 catch (Exception error)
                 {
-                    Console.WriteLine(error);
+                    Logger.ColorLog($"SERVER ERROR: {error}", ConsoleColor.Red);
                 }
             }
         }
@@ -111,26 +112,35 @@ namespace PacmanServerConsole
                         clientConnection.Dispose();
                     }
                     connections.RemoveAt(connectionIDX);
-                    Console.WriteLine($"Remove Client: {ep}");
+                    Logger.ColorLog($"SERVER removed client: {ep}", ConsoleColor.Yellow);
+                    Logger.ColorLog($"SERVER client count: {connections.Count}", ConsoleColor.Yellow);
+                    if (connections.Count == 0)
+                    {
+                        Logger.ColorLog($"SERVER is waiting for clients...");
+                        Logger.ColorLog($"(Press Enter to close server)", ConsoleColor.DarkGray);
+                    }
                 }
             }
             catch (Exception error)
             {
-                Console.WriteLine($"Error removing client connection: {error}");
+                Logger.ColorLog($"SERVER ERROR while removing client: {error}", ConsoleColor.Red);
             }
         }
 
         protected internal void Disconnect()
         {
-            server.Close();
-            server = null;
+            if (server != null)
+            {
+                server.Close();
+                server = null;
+            }
         }
 
         private bool disposing = false;
         public void Dispose()
         {
             disposing = true;
-            Disconnect();
+            if (server != null) Disconnect();
 
             EventTools.KillInvokations(ref onClientDisconnected);
             EventTools.KillInvokations(ref onMessageReceived);

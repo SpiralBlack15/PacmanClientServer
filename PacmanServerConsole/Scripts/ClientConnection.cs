@@ -44,7 +44,7 @@ namespace PacmanServerConsole
             BeginReceive();
 
             // а отправку данных мы просто делаем в отдельном потоке
-            sendingThread = new Thread(Update) { IsBackground = true };
+            sendingThread = new Thread(SendingThread) { IsBackground = true };
             sendingThread.Start();
         }
 
@@ -62,14 +62,18 @@ namespace PacmanServerConsole
             {
                 client.BeginReceive(buffer, 0, buffer.Length, SocketFlags.None, ReceieveAsyncCallback, null);
             }
+            catch (SocketException)
+            {
+                Disconnect(); // можно ошибку не кидать, и так ясно, что проблема с подключением
+            }
             catch (Exception error)
             {
-                Console.WriteLine(error);
+                Logger.ColorLog($"{endPoint}: RECIEVER ERROR {error}", ConsoleColor.Red);
                 Disconnect();
             }
         }
 
-        private void ReceieveAsyncCallback(IAsyncResult asyncResult) // коллбек на конец приёма, уже в главном треде
+        private void ReceieveAsyncCallback(IAsyncResult asyncResult)
         {
             try
             {
@@ -104,6 +108,10 @@ namespace PacmanServerConsole
                     Disconnect();
                 }
             }
+            catch (SocketException)
+            {
+                Disconnect(); // в этом случае мы просто молча отключаемся
+            }
             catch (IOException error)
             {
                 lastReceiveException = error;
@@ -123,7 +131,7 @@ namespace PacmanServerConsole
                 if (lastReceiveException != null)
                 {
                     if (receiver.Length != 0) ReceiverPackToQueue();
-                    Console.WriteLine(lastReceiveException);
+                    Logger.ColorLog($"{endPoint}: RECIEVE ERROR {lastReceiveException}", ConsoleColor.Red);
                 }
             }
             receiveResetEvent.Set(); // обозначили, что всё
@@ -155,26 +163,29 @@ namespace PacmanServerConsole
         {
             if (terminated) message += terminator;
             queueSend.Enqueue(message);
-            // здесь мы заполняем очередь, которую потом будет разруливать апдейтер
-            // не самая разумная идея, возможно
         }
 
-        private Thread sendingThread; // TODO: сделать возможность перезапуска треда
-        private void Update() // разгребаем очередь посылок
+        private Thread sendingThread = null;
+        private void SendingThread()
         {
-            if (client == null) return; // осторожно, двери закрываются
+            if (client == null) return; 
             while (client.Connected)
             {
                 if (queueSend.TryDequeue(out string message))
                 {
+                    Logger.ColorLog($"{endPoint}: <- {message}", ConsoleColor.Gray);
                     try
                     {
                         byte[] data = Encoding.ASCII.GetBytes(message);
                         client.Send(data);
                     }
+                    catch (SocketException)
+                    {
+                        Disconnect();
+                    }
                     catch (Exception error)
                     {
-                        Console.WriteLine($"Sending error: {error}");
+                        Logger.ColorLog($"{endPoint}: SENDING ERROR: {error}", ConsoleColor.Red);
                     }
                 }
                 Thread.Sleep(10);
@@ -185,13 +196,13 @@ namespace PacmanServerConsole
         // DISCONNECTION ==========================================================================
         // Разрываем подключение
         //=========================================================================================
-        private readonly object locker = new object();
-
+        private readonly object sendingThreadLocker = new object();
         public void Disconnect()
         {
             try
             {
-                lock (locker)
+                Logger.ColorLog($"{endPoint}: disconnecting...", ConsoleColor.Yellow);
+                lock (sendingThreadLocker)
                 {
                     if (sendingThread != null)
                     {
@@ -207,7 +218,7 @@ namespace PacmanServerConsole
             }
             catch (Exception error)
             {
-                Console.WriteLine($"Disconnection error: {error}");
+                Logger.ColorLog($"{endPoint} DISCONNECTION ERROR: {error}", ConsoleColor.Red);
             }
         }
 
@@ -215,7 +226,10 @@ namespace PacmanServerConsole
         public void Dispose()
         {
             disposing = true;
-            Disconnect();
+            if (client != null)
+            {
+                if (client.Connected) Disconnect();
+            }
 
             EventTools.KillInvokations(ref onClientDisconnected);
             EventTools.KillInvokations(ref onMessageReceived);

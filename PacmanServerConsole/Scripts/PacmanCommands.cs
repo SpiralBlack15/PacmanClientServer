@@ -10,7 +10,7 @@ namespace PacmanServerConsole
 
         public static void MessageReceiver(ClientConnection client, string answer)
         {
-            Console.WriteLine($"{client.endPoint}: {answer}");
+            Logger.ColorLog($"{client.endPoint}: -> {answer}", ConsoleColor.White);
             answer = answer.Replace(ClientConnection.terminatorStr, ""); // убираем терминатор
             int size = answer.Length;
 
@@ -24,7 +24,7 @@ namespace PacmanServerConsole
                     SendCurrentMap(client);
                     break;
 
-                case "POS": // клиент посылает своё положение
+                case "POS": // клиент посылает своё положение?
                     SetPacmanPosition(client, content);
                     break;
 
@@ -33,7 +33,7 @@ namespace PacmanServerConsole
                     break;
 
                 default: // неопознанный лунный кролик
-                    Console.WriteLine($"Unknown request syntax");
+                    Logger.ColorLog($"Unknown request syntax", ConsoleColor.Gray);
                     return;
             }
         }
